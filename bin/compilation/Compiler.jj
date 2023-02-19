@@ -1,0 +1,61 @@
+options {
+    STATIC = false;
+}
+PARSER_BEGIN(Compiler)
+package compilation;
+import java.util.Hashtable;
+public class Compiler {
+    private Hashtable<String, Double> vars = new Hashtable<String, Double>();
+}
+PARSER_END(Compiler)
+
+SKIP : {
+    " " | "\t" | "\n" | "\r"
+}
+
+TOKEN : {
+    <SHOW : "afficher">
+    |
+    <VAR : ["a"-"z","A"-"Z","_"](["a"-"z","A"-"Z","0"-"9","_"])*>
+    |
+    <EQ : ":="> | <SC : ";">
+    |
+    <OP : "("> | <CP : ")">
+    |
+    <ADD : "+"> | <SUB : "-"> | <MUL : "*"> | <DIV : "/">
+    |
+    <REAL : <NUM>("."<NUM>)?>
+    |
+    <NUM : (["0"-"9"])+>
+}
+
+void S() : {String var;} {
+    (<SHOW> P() | <VAR> {var = token.image;} A(var))*
+}
+void A(String var) : {double val;} {
+    <EQ> val = C() {vars.put(var, val);} <SC> | <SC> {vars.put(var, 0.0);}
+}
+double C() : {double n, x;} {
+    n = T() (<ADD> x = T() {n += x;} | <SUB> x = T() {n -= x;})* {return n;}
+}
+double T() : {double n;} {
+    (<REAL> {n = Double.parseDouble(token.image);} | <VAR> {
+        if (!vars.containsKey(token.image)) throw new ParseException("Undefined variable " + token.image);
+        else n = vars.get(token.image);
+    })
+    (
+        <MUL> (<REAL> {n *= Double.parseDouble(token.image);} | <VAR> {
+            if (!vars.containsKey(token.image)) throw new ParseException("Undefined variable " + token.image);
+            else n *= vars.get(token.image);
+        })
+        |
+        <DIV> (<REAL> {n /= Double.parseDouble(token.image);} | <VAR> {
+            if (!vars.containsKey(token.image)) throw new ParseException("Undefined variable " + token.image);
+            else n /= vars.get(token.image);
+        })
+    )*
+    {return n;}
+}
+void P() : {double val;} {
+    <OP> val = C() <CP> <SC> {System.out.println(val);}
+}
